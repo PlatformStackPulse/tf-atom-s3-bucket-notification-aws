@@ -41,13 +41,13 @@ Configures S3 event notifications to trigger Lambda functions, SQS queues, or SN
 - **Multi-destination** — Lambda, SQS, and SNS in one config
 - **Event filtering** — prefix and suffix filters per destination
 - **Dynamic blocks** — clean HCL for multiple notification rules
-- **Tested** — unit tests for SQS, Lambda, and disabled scenarios
+- **Tested** — mock-provider unit tests for the enabled (Lambda + SQS) and disabled scenarios
 
 ## Usage
 
 ```hcl
 module "bucket_notification" {
-  source = "github.com/PlatformStackPulse/tf-atom-s3-bucket-notification-aws?ref=v1.0.0"
+  source = "git::https://github.com/PlatformStackPulse/tf-atom-s3-bucket-notification-aws.git?ref=v1.0.0"
 
   context   = module.this.context
   bucket_id = module.bucket.bucket_id
@@ -126,3 +126,25 @@ module "bucket_notification" {
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether the module is enabled. |
 | <a name="output_id"></a> [id](#output\_id) | ID of the notification configuration |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests use the Terraform test framework with a mocked AWS provider (no cloud
+credentials required). They run under `command = plan` and assert only on
+plan-known values — the tf-label `enabled` output, the planned resource count,
+and input pass-throughs — never on computed `id`/`arn` values that are unknown
+under a mock provider.
+
+| Test run | Asserts |
+|----------|---------|
+| `creates_when_enabled` | `enabled == true`, exactly one `aws_s3_bucket_notification` planned, `bucket` passes through `bucket_id` |
+| `disabled_creates_nothing` | `enabled == false`, `id` output is `null`, zero resources planned |
+
+Run them locally:
+
+```bash
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+# or
+make test-unit
+```
